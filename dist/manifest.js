@@ -164,6 +164,22 @@
       });
     };
 
+    Manifest.hash_file = function(file, callback) {
+      var hash, stream;
+      hash = crypto.createHash('sha1');
+      stream = fs.createReadStream(file);
+      stream.on('error', cb);
+      stream.on('data', function(data) {
+        return hash.update(data);
+      });
+      return stream.on('end', function(data) {
+        if (data != null) {
+          hash.update(data);
+        }
+        return cb(null, hash.digest('hex'));
+      });
+    };
+
     Manifest.compute_delta = function(from, to) {
       var cmp, compare, f, ffile, from_files, res, t, tfile, to_files;
       if (from.hash === to.hash) {

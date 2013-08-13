@@ -98,6 +98,16 @@ class Manifest
         
         callback(null, manifest)
   
+  @hash_file: (file, callback) ->
+    hash = crypto.createHash('sha1')
+    stream = fs.createReadStream(file)
+    stream.on('error', cb)
+    stream.on 'data', (data) ->
+      hash.update(data)
+    stream.on 'end', (data) ->
+      hash.update(data) if data?
+      cb(null, hash.digest('hex'))
+  
   @compute_delta: (from, to) ->
     return true if from.hash is to.hash
     
