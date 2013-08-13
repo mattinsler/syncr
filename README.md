@@ -38,9 +38,10 @@ Creates a manifest object from the path given.
 
 ##### options
 
-- all: include all files (same as ls -a)
-- ignore: String or Array of patterns to apply to files and directories to filter them out (uses [minimatch](https://npmjs.org/package/minimatch))
-- ignorefile: Path to the ignore file. This is the same as a .gitignore file
+- all (Boolean, default false): Include all files (same as ls -a).
+- aboslute_path (Boolean, default false): Use absolute paths in files hash.
+- ignore (String or Array): Patterns to apply to files and directories to filter them out (uses [minimatch](https://npmjs.org/package/minimatch)).
+- ignorefile (String): Path to the ignore file. This is the same as a .gitignore file.
 
 #### sync.compute_delta(from_manifest, to_manifest)
 

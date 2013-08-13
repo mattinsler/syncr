@@ -14,11 +14,14 @@
   Manifest = (function() {
 
     function Manifest(root, opts) {
-      var content, ignore, _base, _ref;
+      var content, ignore, _base, _base1, _ref, _ref1;
       this.root = root;
       this.opts = opts != null ? opts : {};
       if ((_ref = (_base = this.opts).all) == null) {
         _base.all = false;
+      }
+      if ((_ref1 = (_base1 = this.opts).absolute_path) == null) {
+        _base1.absolute_path = false;
       }
       if ((this.opts.ignore != null) && typeof this.opts.ignore === 'string') {
         this.opts.ignore = [this.opts.ignore];
@@ -76,7 +79,11 @@
     };
 
     Manifest.prototype._read_file = function(file, callback) {
-      return callback(null, file);
+      if (this.opts.absolute_path === false) {
+        return callback(null, file.slice(this.root.length).replace(/^\/+/, ''));
+      } else {
+        return callback(null, file);
+      }
     };
 
     Manifest.prototype._read_dir = function(dir, callback) {

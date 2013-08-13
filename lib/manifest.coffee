@@ -7,6 +7,7 @@ minimatch = require 'minimatch'
 class Manifest
   constructor: (@root, @opts = {}) ->
     @opts.all ?= false
+    @opts.absolute_path ?= false
     
     @opts.ignore = [@opts.ignore] if @opts.ignore? and typeof @opts.ignore is 'string'
     
@@ -41,7 +42,10 @@ class Manifest
     true
   
   _read_file: (file, callback) ->
-    callback(null, file)
+    if @opts.absolute_path is false
+      callback(null, file.slice(@root.length).replace(/^\/+/, ''))
+    else
+      callback(null, file)
   
   _read_dir: (dir, callback) ->
     fs.readdir dir, (err, files) =>
