@@ -1,0 +1,40 @@
+{
+  "name": "syncr",
+  "version": "0.0.1",
+  "description": "syncr helps you deal with the details of remote file synchronization",
+  "homepage": "https://github.com/mattinsler/syncr",
+  "author": {
+    "name": "Matt Insler",
+    "email": "matt.insler@gmail.com",
+    "url": "http://www.mattinsler.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/mattinsler/syncr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/mattinsler/syncr/issues"
+  },
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "https://github.com/mattinsler/syncr/blob/master/LICENSE-MIT"
+    }
+  ],
+  "main": "dist/syncr",
+  "engines": {
+    "node": ">= 0.6.0"
+  },
+  "scripts": {
+    "grunt": "grunt"
+  },
+  "dependencies": {
+    "async": "~0.2.9",
+    "minimatch": "~0.2.12"
+  },
+  "devDependencies": {
+    "grunt": "~0.3.15",
+    "grunt-contrib": "~0.3.0"
+  },
+  "keywords": []
+}
