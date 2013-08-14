@@ -76,15 +76,15 @@ class Manifest
     manifest =
       created_at: new Date()
     
-    @_read_dir @root, (err, files) ->
+    @_read_dir @root, (err, files) =>
       return callback(err) if err?
       
       files = files.sort()
       manifest_hash = crypto.createHash('sha1')
       
-      async.reduce files, {}, (memo, file, cb) ->
+      async.reduce files, {}, (memo, file, cb) =>
         hash = crypto.createHash('sha1')
-        stream = fs.createReadStream(file)
+        stream = fs.createReadStream(path.join(@root, file))
         stream.on('error', cb)
         stream.on 'data', (data) ->
           hash.update(data)
@@ -105,25 +105,23 @@ class Manifest
   @hash_file: (file, callback) ->
     hash = crypto.createHash('sha1')
     stream = fs.createReadStream(file)
-    stream.on('error', cb)
+    stream.on('error', callback)
     stream.on 'data', (data) ->
       hash.update(data)
     stream.on 'end', (data) ->
       hash.update(data) if data?
-      cb(null, hash.digest('hex'))
+      callback(null, hash.digest('hex'))
   
   @compute_delta: (from, to) ->
-    return true if from.hash is to.hash
-    
     res =
       add: []
       remove: []
       change: []
     
+    return res if from.hash is to.hash
+    
     compare = (lhs, rhs) ->
-      return -1 unless lhs?
-      return 1 unless rhs?
-      String::localeCompare.call(lhs, rhs)
+      String::localeCompare.call(lhs or '', rhs or '')
     
     f = t = 0
     from_files = Object.keys(from.files).sort(compare)
@@ -135,11 +133,11 @@ class Manifest
       
       cmp = compare(ffile, tfile)
       if cmp < 0
-        res.remove.push(ffile)
-        ++f
-      else if cmp > 0
         res.add.push(tfile)
         ++t
+      else if cmp > 0
+        res.remove.push(ffile)
+        ++f
       else
         res.change.push(ffile) if from.files[ffile] isnt to.files[tfile]
         ++t

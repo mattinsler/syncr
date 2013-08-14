@@ -130,7 +130,8 @@
     };
 
     Manifest.prototype.create = function(callback) {
-      var manifest;
+      var manifest,
+        _this = this;
       manifest = {
         created_at: new Date()
       };
@@ -144,7 +145,7 @@
         return async.reduce(files, {}, function(memo, file, cb) {
           var hash, stream;
           hash = crypto.createHash('sha1');
-          stream = fs.createReadStream(file);
+          stream = fs.createReadStream(path.join(_this.root, file));
           stream.on('error', cb);
           stream.on('data', function(data) {
             hash.update(data);
@@ -175,7 +176,7 @@
       var hash, stream;
       hash = crypto.createHash('sha1');
       stream = fs.createReadStream(file);
-      stream.on('error', cb);
+      stream.on('error', callback);
       stream.on('data', function(data) {
         return hash.update(data);
       });
@@ -183,28 +184,22 @@
         if (data != null) {
           hash.update(data);
         }
-        return cb(null, hash.digest('hex'));
+        return callback(null, hash.digest('hex'));
       });
     };
 
     Manifest.compute_delta = function(from, to) {
       var cmp, compare, f, ffile, from_files, res, t, tfile, to_files;
-      if (from.hash === to.hash) {
-        return true;
-      }
       res = {
         add: [],
         remove: [],
         change: []
       };
+      if (from.hash === to.hash) {
+        return res;
+      }
       compare = function(lhs, rhs) {
-        if (lhs == null) {
-          return -1;
-        }
-        if (rhs == null) {
-          return 1;
-        }
-        return String.prototype.localeCompare.call(lhs, rhs);
+        return String.prototype.localeCompare.call(lhs || '', rhs || '');
       };
       f = t = 0;
       from_files = Object.keys(from.files).sort(compare);
@@ -214,11 +209,11 @@
         tfile = to_files[t];
         cmp = compare(ffile, tfile);
         if (cmp < 0) {
-          res.remove.push(ffile);
-          ++f;
-        } else if (cmp > 0) {
           res.add.push(tfile);
           ++t;
+        } else if (cmp > 0) {
+          res.remove.push(ffile);
+          ++f;
         } else {
           if (from.files[ffile] !== to.files[tfile]) {
             res.change.push(ffile);
