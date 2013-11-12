@@ -1,6 +1,6 @@
 {
   "name": "syncr",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "syncr helps you deal with the details of remote file synchronization",
   "homepage": "https://github.com/mattinsler/syncr",
   "author": {

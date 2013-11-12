@@ -57,7 +57,10 @@ Creates a delta object that specifies the steps needed to be taken to transform
   remove: [],
   change: [
     "package.json"
-  ]
+  ],
+  rename: {
+    "from-file.js": "to-file.js"
+  }
 }
 ```
 

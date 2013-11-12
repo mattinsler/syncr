@@ -1,5 +1,5 @@
 (function() {
-  var Manifest, async, crypto, fs, minimatch, path;
+  var Manifest, async, crypto, fs, invert_obj, minimatch, path;
 
   fs = require('fs');
 
@@ -11,12 +11,20 @@
 
   minimatch = require('minimatch');
 
+  invert_obj = function(obj) {
+    return Object.keys(obj).reduce(function(o, k) {
+      o[obj[k]] = k;
+      return o;
+    }, {});
+  };
+
   Manifest = (function() {
 
     function Manifest(root, opts) {
       var content, ignore, _base, _base1, _ref, _ref1;
       this.root = root;
       this.opts = opts != null ? opts : {};
+      this.root = path.resolve(this.root);
       if ((_ref = (_base = this.opts).all) == null) {
         _base.all = false;
       }
@@ -66,9 +74,6 @@
     }
 
     Manifest.prototype._filter = function(file) {
-      if (file === '.' || file === '..') {
-        return false;
-      }
       if (this.opts.all === false && file[0] === '.') {
         return false;
       }
@@ -80,7 +85,7 @@
 
     Manifest.prototype._read_file = function(file, callback) {
       if (this.opts.absolute_path === false) {
-        return callback(null, file.slice(this.root.length).replace(/^\/+/, ''));
+        return callback(null, file.slice(this.root.length).replace(/^\/*/, ''));
       } else {
         return callback(null, file);
       }
@@ -130,21 +135,21 @@
     };
 
     Manifest.prototype.create = function(callback) {
-      var manifest,
+      var manifest, manifest_hash,
         _this = this;
       manifest = {
         created_at: new Date()
       };
+      manifest_hash = crypto.createHash('sha1');
       return this._read_dir(this.root, function(err, files) {
-        var manifest_hash;
         if (err != null) {
           return callback(err);
         }
         files = files.sort();
-        manifest_hash = crypto.createHash('sha1');
         return async.reduce(files, {}, function(memo, file, cb) {
           var hash, stream;
           hash = crypto.createHash('sha1');
+          manifest_hash.update(file);
           stream = fs.createReadStream(path.join(_this.root, file));
           stream.on('error', cb);
           stream.on('data', function(data) {
@@ -189,37 +194,57 @@
     };
 
     Manifest.compute_delta = function(from, to) {
-      var cmp, compare, f, ffile, from_files, res, t, tfile, to_files;
+      var a, create_hash, fhash, get_filename, r, res, thash;
       res = {
         add: [],
         remove: [],
-        change: []
+        change: [],
+        rename: {}
       };
       if (from.hash === to.hash) {
         return res;
       }
-      compare = function(lhs, rhs) {
-        return String.prototype.localeCompare.call(lhs || '', rhs || '');
+      create_hash = function(files) {
+        return Object.keys(files).map(function(f) {
+          return [files[f], f].join(':');
+        }).reduce(function(o, k) {
+          o[k] = 1;
+          return o;
+        }, {});
       };
-      f = t = 0;
-      from_files = Object.keys(from.files).sort(compare);
-      to_files = Object.keys(to.files).sort(compare);
-      while (!(f === from_files.length && t === to_files.length)) {
-        ffile = from_files[f];
-        tfile = to_files[t];
-        cmp = compare(ffile, tfile);
-        if (cmp < 0) {
-          res.add.push(tfile);
-          ++t;
-        } else if (cmp > 0) {
-          res.remove.push(ffile);
-          ++f;
-        } else {
-          if (from.files[ffile] !== to.files[tfile]) {
-            res.change.push(ffile);
+      get_filename = function(h) {
+        return h.replace(/^[^:]+:/, '');
+      };
+      fhash = create_hash(from.files);
+      thash = create_hash(to.files);
+      res.add = Object.keys(thash).filter(function(h) {
+        return !(fhash[h] != null);
+      }).map(get_filename).sort();
+      res.remove = Object.keys(fhash).filter(function(h) {
+        return !(thash[h] != null);
+      }).map(get_filename).sort();
+      a = r = 0;
+      while (a < res.add.length && r < res.remove.length) {
+        if (res.add[a] < res.remove[r]) {
+          if (from.files[res.remove[r]] === to.files[res.add[a]]) {
+            res.rename[res.remove[r]] = res.add[a];
+            res.add.splice(a, 1);
+            res.remove.splice(r, 1);
+          } else {
+            ++a;
           }
-          ++t;
-          ++f;
+        } else if (res.add[a] > res.remove[r]) {
+          if (from.files[res.remove[r]] === to.files[res.add[a]]) {
+            res.rename[res.remove[r]] = res.add[a];
+            res.add.splice(a, 1);
+            res.remove.splice(r, 1);
+          } else {
+            ++r;
+          }
+        } else {
+          res.change.push(res.add[a]);
+          res.add.splice(a, 1);
+          res.remove.splice(r, 1);
         }
       }
       return res;

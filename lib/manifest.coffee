@@ -4,8 +4,16 @@ async = require 'async'
 crypto = require 'crypto'
 minimatch = require 'minimatch'
 
+invert_obj = (obj) ->
+  Object.keys(obj).reduce (o, k) ->
+    o[obj[k]] = k
+    o
+  , {}
+
 class Manifest
   constructor: (@root, @opts = {}) ->
+    @root = path.resolve(@root)
+    
     @opts.all ?= false
     @opts.absolute_path ?= false
     
@@ -36,14 +44,14 @@ class Manifest
       @opts.ignore = -> false
   
   _filter: (file) ->
-    return false if file in ['.', '..']
+    # return false if file in ['.', '..']
     return false if @opts.all is false and file[0] is '.'
     return false if @opts.ignore(file)
     true
   
   _read_file: (file, callback) ->
     if @opts.absolute_path is false
-      callback(null, file.slice(@root.length).replace(/^\/+/, ''))
+      callback(null, file.slice(@root.length).replace(/^\/*/, ''))
     else
       callback(null, file)
   
@@ -76,14 +84,17 @@ class Manifest
     manifest =
       created_at: new Date()
     
+    manifest_hash = crypto.createHash('sha1')
+    
     @_read_dir @root, (err, files) =>
       return callback(err) if err?
       
       files = files.sort()
-      manifest_hash = crypto.createHash('sha1')
       
       async.reduce files, {}, (memo, file, cb) =>
         hash = crypto.createHash('sha1')
+        manifest_hash.update(file)
+        
         stream = fs.createReadStream(path.join(@root, file))
         stream.on('error', cb)
         stream.on 'data', (data) ->
@@ -117,31 +128,54 @@ class Manifest
       add: []
       remove: []
       change: []
+      rename: {}
     
     return res if from.hash is to.hash
     
-    compare = (lhs, rhs) ->
-      String::localeCompare.call(lhs or '', rhs or '')
+    create_hash = (files) ->
+      Object.keys(files)
+      .map (f) ->
+        [files[f], f].join(':')
+      .reduce (o, k) ->
+        o[k] = 1
+        o
+      , {}
     
-    f = t = 0
-    from_files = Object.keys(from.files).sort(compare)
-    to_files = Object.keys(to.files).sort(compare)
+    get_filename = (h) -> h.replace(/^[^:]+:/, '')
     
-    until f is from_files.length and t is to_files.length
-      ffile = from_files[f]
-      tfile = to_files[t]
-      
-      cmp = compare(ffile, tfile)
-      if cmp < 0
-        res.add.push(tfile)
-        ++t
-      else if cmp > 0
-        res.remove.push(ffile)
-        ++f
+    fhash = create_hash(from.files)
+    thash = create_hash(to.files)
+    
+    res.add = Object.keys(thash)
+    .filter((h) -> !fhash[h]?)
+    .map(get_filename)
+    .sort()
+    
+    res.remove = Object.keys(fhash)
+    .filter((h) -> !thash[h]?)
+    .map(get_filename)
+    .sort()
+    
+    a = r = 0
+    while a < res.add.length and r < res.remove.length
+      if res.add[a] < res.remove[r]
+        if from.files[res.remove[r]] is to.files[res.add[a]]
+          res.rename[res.remove[r]] = res.add[a]
+          res.add.splice(a, 1)
+          res.remove.splice(r, 1)
+        else
+          ++a
+      else if res.add[a] > res.remove[r]
+        if from.files[res.remove[r]] is to.files[res.add[a]]
+          res.rename[res.remove[r]] = res.add[a]
+          res.add.splice(a, 1)
+          res.remove.splice(r, 1)
+        else
+          ++r
       else
-        res.change.push(ffile) if from.files[ffile] isnt to.files[tfile]
-        ++t
-        ++f
+        res.change.push(res.add[a])
+        res.add.splice(a, 1)
+        res.remove.splice(r, 1)
     
     res
 
