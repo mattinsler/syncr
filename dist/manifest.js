@@ -96,7 +96,7 @@
       return fs.readdir(dir, function(err, files) {
         var res;
         if (err != null) {
-          return callback(err);
+          return callback(null, []);
         }
         res = [];
         files = files.filter(_this._filter.bind(_this)).map(function(f) {
@@ -105,7 +105,7 @@
         return async.each(files, function(file, cb) {
           return fs.stat(file, function(err, stat) {
             if (err != null) {
-              return cb(err);
+              return cb();
             }
             if (stat.isDirectory()) {
               return _this._read_dir(file, function(err, dir_files) {
@@ -150,7 +150,11 @@
           var hash, stream;
           hash = crypto.createHash('sha1');
           manifest_hash.update(file);
-          stream = fs.createReadStream(path.join(_this.root, file));
+          try {
+            stream = fs.createReadStream(path.join(_this.root, file));
+          } catch (err) {
+            return cb(null, memo);
+          }
           stream.on('error', cb);
           stream.on('data', function(data) {
             hash.update(data);
@@ -180,7 +184,11 @@
     Manifest.hash_file = function(file, callback) {
       var hash, stream;
       hash = crypto.createHash('sha1');
-      stream = fs.createReadStream(file);
+      try {
+        stream = fs.createReadStream(file);
+      } catch (err) {
+        return callback(err);
+      }
       stream.on('error', callback);
       stream.on('data', function(data) {
         return hash.update(data);

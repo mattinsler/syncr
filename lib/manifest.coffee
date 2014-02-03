@@ -57,14 +57,16 @@ class Manifest
   
   _read_dir: (dir, callback) ->
     fs.readdir dir, (err, files) =>
-      return callback(err) if err?
+      # return callback(err) if err?
+      return callback(null, []) if err?
       
       res = []
       files = files.filter(@_filter.bind(@)).map (f) -> path.join(dir, f)
       
       async.each files, (file, cb) =>
         fs.stat file, (err, stat) =>
-          return cb(err) if err?
+          # return cb(err) if err?
+          return cb() if err?
           
           if stat.isDirectory()
             @_read_dir file, (err, dir_files) ->
@@ -95,7 +97,10 @@ class Manifest
         hash = crypto.createHash('sha1')
         manifest_hash.update(file)
         
-        stream = fs.createReadStream(path.join(@root, file))
+        try
+          stream = fs.createReadStream(path.join(@root, file))
+        catch err
+          return cb(null, memo)
         stream.on('error', cb)
         stream.on 'data', (data) ->
           hash.update(data)
@@ -115,7 +120,10 @@ class Manifest
   
   @hash_file: (file, callback) ->
     hash = crypto.createHash('sha1')
-    stream = fs.createReadStream(file)
+    try
+      stream = fs.createReadStream(file)
+    catch err
+      return callback(err)
     stream.on('error', callback)
     stream.on 'data', (data) ->
       hash.update(data)
